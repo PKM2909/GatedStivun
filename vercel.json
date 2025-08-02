@@ -1,0 +1,23 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "index.js",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "verify-wallet.html",
+      "use": "@vercel/static-build"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/verify-wallet.html",
+      "dest": "verify-wallet.html"
+    },
+    {
+      "src": "/verify-wallet",
+      "dest": "index.js"
+    }
+  ]
+}
