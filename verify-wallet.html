@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stivun Bot Verification</title>
+    <!-- Use Tailwind CSS for easy styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/ethers@6.11.1/dist/ethers.umd.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0d1117;
+            color: #c9d1d9;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+    </style>
+</head>
+<body class="p-4">
+
+<div id="container" class="bg-[#161b22] p-8 rounded-2xl shadow-lg border border-[#30363d] max-w-sm w-full text-center">
+    
+    <!-- Title and Description -->
+    <h1 class="text-3xl font-bold mb-2">Verify Your Wallet</h1>
+    <p class="text-sm text-[#8b949e] mb-6">
+        Connect your wallet and sign a message to prove you hold the required tokens and get an invite to the private group.
+    </p>
+
+    <!-- Main button -->
+    <button id="connectButton" 
+            class="w-full bg-[#238636] hover:bg-[#2ea043] text-white font-bold py-3 px-4 rounded-xl shadow-md transition-all duration-200 ease-in-out transform hover:scale-105">
+        Connect Wallet
+    </button>
+    
+    <!-- Loading and status messages -->
+    <div id="loading" class="mt-4 hidden">
+        <div class="flex items-center justify-center space-x-2">
+            <div class="w-4 h-4 rounded-full bg-[#238636] animate-pulse"></div>
+            <div class="w-4 h-4 rounded-full bg-[#238636] animate-pulse delay-75"></div>
+            <div class="w-4 h-4 rounded-full bg-[#238636] animate-pulse delay-150"></div>
+        </div>
+        <p class="text-sm mt-2 text-[#8b949e]">Verifying...</p>
+    </div>
+
+    <!-- Error message display -->
+    <div id="errorBox" class="mt-4 p-3 bg-red-800 text-white rounded-xl hidden">
+        <p id="errorMessage" class="text-sm"></p>
+    </div>
+    
+    <!-- Success message display -->
+    <div id="successBox" class="mt-4 p-4 bg-[#21432f] text-white rounded-xl border border-[#238636] hidden">
+        <p class="text-lg font-semibold mb-2">Verification Complete!</p>
+        <p>Click the link below to join the group:</p>
+        <a id="inviteLink" href="#" target="_blank" 
+           class="mt-2 inline-block bg-[#238636] hover:bg-[#2ea043] text-white font-bold py-2 px-4 rounded-xl transition-all duration-200">
+           Join the Group
+        </a>
+    </div>
+
+</div>
+
+<script>
+    // --- Configuration Variables ---
+    // IMPORTANT: You MUST update this with the public URL from your Replit project.
+    const API_URL = 'https://your-replit-url.replit.co';
+    const CHALLENGE_MESSAGE = 'Prove ownership to join Memelord HQ';
+    
+    // --- UI Elements ---
+    const connectButton = document.getElementById('connectButton');
+    const loadingDiv = document.getElementById('loading');
+    const errorBox = document.getElementById('errorBox');
+    const errorMessage = document.getElementById('errorMessage');
+    const successBox = document.getElementById('successBox');
+    const inviteLinkElement = document.getElementById('inviteLink');
+
+    // --- Helper Functions ---
+
+    /**
+     * Shows the loading state and hides others.
+     */
+    function showLoading() {
+        connectButton.classList.add('hidden');
+        loadingDiv.classList.remove('hidden');
+        errorBox.classList.add('hidden');
+        successBox.classList.add('hidden');
+    }
+
+    /**
+     * Shows an error message and hides others.
+     * @param {string} msg The error message to display.
+     */
+    function showError(msg) {
+        loadingDiv.classList.add('hidden');
+        connectButton.classList.remove('hidden');
+        errorBox.classList.remove('hidden');
+        errorMessage.innerText = msg;
+        successBox.classList.add('hidden');
+    }
+
+    /**
+     * Shows the success message with an invite link.
+     * @param {string} link The Telegram invite link.
+     */
+    function showSuccess(link) {
+        loadingDiv.classList.add('hidden');
+        connectButton.classList.add('hidden');
+        errorBox.classList.add('hidden');
+        successBox.classList.remove('hidden');
+        inviteLinkElement.href = link;
+    }
+
+    // --- Main Logic ---
+
+    // Event listener for the connect button
+    connectButton.addEventListener('click', async () => {
+        showLoading();
+
+        try {
+            // Check if MetaMask or a similar provider is available
+            if (!window.ethereum) {
+                showError('No Web3 provider detected. Please install MetaMask or use a Web3-enabled browser.');
+                return;
+            }
+
+            // Request account access and get the provider
+            const provider = new ethers.BrowserProvider(window.ethereum);
+            const signer = await provider.getSigner();
+            const walletAddress = await signer.getAddress();
+
+            // Get the user's ID from the Telegram Mini App API
+            const userId = Telegram.WebApp.initDataUnsafe.user.id;
+
+            if (!userId) {
+                showError('Could not get Telegram user ID.');
+                return;
+            }
+
+            // Have the user sign the challenge message
+            const signature = await signer.signMessage(CHALLENGE_MESSAGE);
+
+            // Send verification data to the backend
+            const response = await fetch(`${API_URL}/verify-wallet`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    userId: userId,
+                    walletAddress: walletAddress,
+                    signature: signature
+                })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                showSuccess(result.inviteLink);
+            } else {
+                showError(result.message || 'Verification failed. Please try again.');
+            }
+
+        } catch (error) {
+            console.error('Verification process failed:', error);
+            showError('Verification failed. Please make sure you have the correct network and tokens.');
+        }
+    });
+</script>
+
+</body>
+</html>
