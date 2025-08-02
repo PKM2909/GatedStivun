@@ -4,20 +4,21 @@ const ethers = require('ethers');
 const cron = require('node-cron');
 const express = require('express');
 const cors = require('cors');
+const path = require('path'); // Import the 'path' module to handle file paths
 
 // --- Firestore/Firebase Imports ---
 const admin = require('firebase-admin');
 
 // --- Configuration Variables ---
-// IMPORTANT: Replace the BOT_URL with your actual Replit URL after your first deployment.
+// IMPORTANT: Replace the BOT_URL with your actual Vercel URL after deployment.
 // Replit's environment variables can be accessed via process.env
 const BOT_TOKEN = '8397845939:AAHzXoD9DhAS3onvqms2ZwScT3RwlpQ0wjw'; // Get this from @BotFather
 const GROUP_CHAT_ID = -4858772833; // The ID of your Telegram group (starts with -100)
 const ETHEREUM_RPC_URL = 'https://rpc.mainnet.taraxa.io/';
 const CONTRACT_ADDRESS = '0x7944e09006504c062816d4EF083A5184c0929BB5';
 const REQUIRED_TOKEN_AMOUNT = 10;
-// You will get this URL from Replit after you run the project for the first time
-const BOT_URL = 'https://your-replit-url.replit.co/verify-wallet.html';
+// You will get this URL from Vercel after you run the project for the first time
+const BOT_URL = 'https://gated-stivun.vercel.app/verify-wallet.html';
 
 // The ABI for the ERC-20 contract, containing only the 'balanceOf' function.
 const ERC20_ABI = [
@@ -25,7 +26,7 @@ const ERC20_ABI = [
 ];
 
 // --- Firebase Configuration ---
-// Read the service account key from Replit Secrets
+// Read the service account key from Vercel's Environment Variables
 // The key is a JSON string, so we need to parse it.
 try {
     const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
@@ -37,7 +38,9 @@ try {
 } catch (error) {
     console.error('Error initializing Firebase. Make sure FIREBASE_SERVICE_ACCOUNT_KEY secret is set correctly.');
     console.error('Error:', error);
-    process.exit(1); // Exit the process if Firebase initialization fails.
+    // On Vercel, this might cause a deployment to fail, which is good.
+    // In a local environment, it will exit the process.
+    // process.exit(1); 
 }
 
 
@@ -56,6 +59,13 @@ app.use(cors()); // Allow cross-origin requests from the Mini App
 // Acknowledgment
 bot.on('polling_error', console.error);
 console.log('Bot is running...');
+
+// --- New Route for Serving the Mini App Frontend ---
+// This will serve the verify-wallet.html file when a GET request is made
+app.get('/verify-wallet.html', (req, res) => {
+    // The path.join function safely constructs the path to your file
+    res.sendFile(path.join(__dirname, 'verify-wallet.html'));
+});
 
 
 /**
@@ -135,8 +145,10 @@ app.post('/verify-wallet', async (req, res) => {
             res.status(401).send({ success: false, message: 'Signature verification failed. Not the wallet owner.' });
         }
     } catch (error) {
-        console.error('Error during mini-app verification:', error);
-        res.status(500).send({ success: false, message: 'Internal server error.' });
+            // Log the detailed error
+            console.error('Error during mini-app verification:', error);
+            // Respond with a generic server error message
+            res.status(500).send({ success: false, message: 'Internal server error.' });
     }
 });
 
